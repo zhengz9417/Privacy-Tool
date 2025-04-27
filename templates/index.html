@@ -1,0 +1,194 @@
+{# templates/index.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<div id="questionnaire" class="container-narrow mt-4">
+  <transition name="fade" mode="out-in">
+    <div class="card shadow-sm" :key="currentIndex">
+      <div class="card-body">
+        <!-- Progress header -->
+        <h5 class="card-title mb-3">
+          Question
+          <span v-text="currentIndex + 1"></span>
+          of
+          <span v-text="total"></span>
+        </h5>
+        <p class="card-text" v-text="currentQuestion.text"></p>
+
+        <div v-if="!currentQuestion.multi">
+                    <div class="form-check mb-2"
+                         v-for="opt in currentQuestion.options"
+                         :key="opt">
+                     <input
+                        class="form-check-input"
+                        type="radio"
+                        :name="currentQuestion.id"
+                        :id="currentQuestion.id + '-' + opt"
+                        :value="opt"
+                        v-model="answers[getRawIndex(currentIndex)]"
+                      />
+            <label
+              class="form-check-label"
+              :for="currentQuestion.id + '-' + opt"
+            >
+              <span v-text="opt"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Multi-select -->
+        <div v-else>
+                    <div class="form-check mb-2"
+                        v-for="opt in currentQuestion.options"
+                         :key="opt">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        :id="currentQuestion.id + '-' + opt"
+                        :value="opt"
+                        v-model="answers[getRawIndex(currentIndex)]"
+                      />
+            <label
+              class="form-check-label"
+              :for="currentQuestion.id + '-' + opt"
+            >
+              <span v-text="opt"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer with navigation -->
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <button
+          class="btn btn-outline-secondary"
+          @click="prev()"
+          :disabled="currentIndex === 0"
+        >
+          ‹ Previous
+        </button>
+
+        <div class="w-50">
+          <div class="progress" style="height: 6px;">
+            <div
+              class="progress-bar bg-success"
+              role="progressbar"
+              :style="{ width: progress + '%' }"
+            ></div>
+          </div>
+        </div>
+
+        <button
+          class="btn btn-secondary"
+          v-if="!isLast"
+          @click="next()"
+          :disabled="!hasAnswered(currentIndex)"
+        >
+          Next ›
+        </button>
+        <button
+          class="btn btn-success"
+          v-else
+          @click="submitForm()"
+          :disabled="!hasAnswered(currentIndex)"
+        >
+          Submit ✔
+        </button>
+      </div>
+    </div>
+  </transition>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+  <!-- 1) Inject the full questions list (with depends_on/depends_value) -->
+  <script>
+    window.__RAW_QUESTIONS__ = {{ questions|tojson }};
+  </script>
+
+  <!-- 2) Inline Vue app that filters out Q4 until Q3 = "Real-time/interactive" -->
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          rawQuestions: window.__RAW_QUESTIONS__ || [],
+          answers:      [],       // we’ll fill this below
+          currentIndex: 0
+        };
+      },
+      computed: {
+        // Only questions whose dependency is satisfied
+        visibleQuestions() {
+          return this.rawQuestions.filter((q, idx) => {
+            if (!q.depends_on) return true;
+            // depends_on = "q3" → raw index = 2
+            const depIdx = Number(q.depends_on.slice(1)) - 1;
+            return this.answers[depIdx] === q.depends_value;
+          });
+        },
+        // Shortcut to the question we’re currently rendering
+        currentQuestion() {
+          return this.visibleQuestions[this.currentIndex] || {};
+        },
+        total() {
+          return this.visibleQuestions.length;
+        },
+        progress() {
+          return ((this.currentIndex + 1)/this.total)*100;
+        },
+        isLast() {
+          return this.currentIndex === this.total - 1;
+        }
+      },
+      methods: {
+          hasAnswered(visIdx) {
+          const rawIdx = this.getRawIndex(visIdx);
+          const ans    = this.answers[rawIdx];
+          return Array.isArray(ans)
+            ? ans.length > 0
+            : ans !== null && ans !== undefined;
+        },
+        // map visible‐index → rawQuestions index
+        getRawIndex(visIdx) {
+          // find the visIdx'th element in visibleQuestions
+          const q = this.visibleQuestions[visIdx];
+          // find its index in the raw array
+          return this.rawQuestions.findIndex(rq => rq.id === q.id);
+        },
+        next() {
+          if (this.currentIndex < this.total - 1) {
+            this.currentIndex++;
+          }
+        },
+        prev() {
+          if (this.currentIndex > 0) {
+            this.currentIndex--;
+          }
+        },
+        submitForm() {
+          // build payload from rawQuestions & answers
+          const payload = {};
+          this.rawQuestions.forEach((q, idx) => {
+            payload[q.id] = this.answers[idx];
+          });
+          fetch('/results', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+          })
+          .then(r=>r.json())
+          .then(j=> window.location = j.redirect);
+        }
+      },
+      mounted() {
+        // initialize answers[] to null or [] for checkboxes
+        this.rawQuestions.forEach(q => {
+          this.answers.push(q.multi ? [] : null);
+        });
+      }
+    }).mount('#questionnaire');
+  </script>
+{% endblock %}

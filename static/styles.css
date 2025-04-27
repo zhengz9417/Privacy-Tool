@@ -1,0 +1,205 @@
+/*  static/styles.css
+    ---------------------------------------------------------
+    Extra flair on top of Bootstrap 5 for the privacy PET app
+    --------------------------------------------------------- */
+
+/* 1 ─────────────────────────────────────────────────────────
+   Color theme variables
+   (override Bootstrap root variables if you want a full theme)
+   ─────────────────────────────────────────────────────────── */
+   :root {
+    --bs-primary: #333335;          /* deep Columbia blue           */
+    --bs-secondary: #6c757d;
+    --bs-success:  #28a745;
+    --bs-warning:  #ffc107;
+    --bs-danger:   #e55353;
+    --bs-light:    #f8f9fa;
+    --bs-dark:     #212529;
+  
+    /* custom shades */
+    --accent-faint: #eef4ff;
+    --accent-hover: #d5e1ff;
+    --accordion-border: #dfe4ed;
+  }
+  
+  /* 2 ─────────────────────────────────────────────────────────
+     Layout helpers
+     ─────────────────────────────────────────────────────────── */
+  body {
+    background: var(--bs-light);
+    font-family: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.55;
+  }
+  
+  .container-narrow {
+    max-width: 960px;
+    margin: 3rem auto;
+  }
+  
+  /* 3 ─────────────────────────────────────────────────────────
+     Progress bar customization
+     ─────────────────────────────────────────────────────────── */
+  .progress {
+    background-color: var(--accent-faint);
+    border-radius: 4px;
+  }
+  
+  .progress-bar {
+    transition: width 0.3s ease;
+  }
+  
+  /* 4 ─────────────────────────────────────────────────────────
+     Accordion – subtle shadow & smooth chevron rotation
+     ─────────────────────────────────────────────────────────── */
+  .accordion-item {
+    border: 1px solid var(--accordion-border);
+    border-radius: 6px !important;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    transition: transform 0.15s ease;
+  }
+  
+  .accordion-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+  
+  .accordion-button {
+    background-color: #fff;
+    font-weight: 600;
+  }
+  
+  .accordion-button:not(.collapsed) {
+    color: var(--bs-primary);
+    background-color: var(--accent-faint);
+    box-shadow: inset 0 -1px 0 var(--accordion-border);
+  }
+  
+  .accordion-button::after {
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .accordion-button:not(.collapsed)::after {
+    transform: rotate(-180deg);
+  }
+  
+  /* 5 ─────────────────────────────────────────────────────────
+     Radio / checkbox styling
+     ─────────────────────────────────────────────────────────── */
+  .form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+  }
+  
+  .form-check-input:focus {
+    box-shadow: 0 0 0 0.15rem rgba(0, 88, 230, 0.25);
+  }
+  
+  /* 6 ─────────────────────────────────────────────────────────
+     Results list
+     ─────────────────────────────────────────────────────────── */
+  .list-group-item {
+    border-color: var(--accordion-border);
+  }
+  
+  .list-group-item .badge {
+    font-size: 0.9rem;
+    padding: 0.55em 0.8em;
+  }
+  
+  .list-group-item .fw-bold {
+    font-weight: 600 !important;
+  }
+  
+  /* 7 ─────────────────────────────────────────────────────────
+     Buttons
+     ─────────────────────────────────────────────────────────── */
+  .btn-primary,
+  .btn-primary:visited {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+  }
+  
+  .btn-primary:hover,
+  .btn-primary:focus {
+
+    border-color: #4f95b4;
+  }
+  
+  .btn-secondary:hover {
+    background-color:#4f95b4;
+    border-color: #3d546b;
+  }
+  
+  /* 8 ─────────────────────────────────────────────────────────
+     Utility tweaks for small screens
+     ─────────────────────────────────────────────────────────── */
+  @media (max-width: 576px) {
+    h2 { font-size: 1.45rem; }
+    h4 { font-size: 1.2rem; }
+    .accordion-button { padding: 0.75rem 1rem; }
+  }
+  
+  /* 9 ─────────────────────────────────────────────────────────
+     Dark-mode (prefers-color-scheme)
+     ─────────────────────────────────────────────────────────── */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: var(--bs-dark);
+      color: #e5e5e5;
+    }
+    .accordion-item { border-color: #3a3f45; }
+    .accordion-button {
+      background-color: #2d3238;
+      color: #e5e5e5;
+    }
+    .accordion-button:not(.collapsed) {
+      background-color: #21468B;
+    }
+    .progress { background-color: #3a3f45; }
+    .list-group-item { background-color: #2d3238; border-color: #3a3f45; }
+    .btn-secondary { color: #fff; }
+  }
+/* Fade transition for question card */
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 0.4s ease;
+  }
+  .fade-enter-from, .fade-leave-to {
+    opacity: 0;
+  }
+/* Fancy gradient background for the results panel */
+.results-container {
+  background: linear-gradient(135deg, #4e54c8 0%, #8f94fb 100%);
+}
+
+/* White-on-gradient list items */
+.list-group-item {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+/* Large, pill-style rank badges */
+.rank-badge {
+  background-color: #ffdd57;
+  color: #000;
+  font-weight: bold;
+  font-size: 1rem;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.rank-badge-secondary {
+  background-color: #6c757d;
+  color: #fff;
+  font-size: 0.9rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}

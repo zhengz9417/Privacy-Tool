@@ -1,0 +1,180 @@
+{# templates/wizard.html #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div id="wizardApp" class="container container-narrow py-5">
+
+    <!-- Title -->
+    <h2 class="mb-4 text-white">[[ steps[0].tool ]] Configuration</h2>
+
+    <!-- Optional per-tool intro -->
+    <div class="text-white mb-4">
+      <template v-if="tool === 'Differential Privacy'">
+        Differential Privacy (DP) protects individual records by adding noise…
+      </template>
+      <template v-else-if="tool === 'Secure Multiparty Computation'">
+        Secure Multiparty Computation lets multiple parties jointly compute…
+      </template>
+      <template v-else-if="tool === 'Synthetic Data Generation'">
+        Synthetic Data Generation creates artificial records that mirror…
+      </template>
+      <template v-else-if="tool === 'Trusted Execution Environments'">
+        TEEs give you a hardware-backed secure enclave to process…
+      </template>
+      <template v-else-if="tool.includes('k-anonymity')">
+        k-Anonymity & ℓ-Diversity generalize and suppress quasi-identifiers…
+      </template>
+    </div>
+
+    <form @submit.prevent="submitWizard" novalidate>
+      <div
+        v-for="q in steps[0].questions"
+        :key="q.id"
+        class="mb-4"
+      >
+        <label :for="q.id" class="form-label text-white">
+          [[ q.text ]]
+        </label>
+
+        <!-- numeric input for DP & MPC -->
+        <input
+          v-if="q.input_type === 'number'"
+          v-model.number="answers[q.id]"
+          type="number"
+          :id="q.id"
+          :placeholder="q.placeholder || ''"
+          class="form-control"
+        />
+
+        <!-- radio buttons for any question with options -->
+        <div v-else>
+          <div
+            v-for="opt in q.options"
+            :key="opt"
+            class="form-check mb-1"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              :name="q.id"
+              :id="q.id + '_' + opt"
+              :value="opt"
+              v-model="answers[q.id]"
+            />
+            <label 
+             class="form-check-label text-white"
+             :for="q.id + '_' + opt"
+             v-text="opt"
+             ></label>
+          </div>
+        </div>
+
+        <div v-if="errors[q.id]" class="text-danger mt-1">
+          [[ errors[q.id] ]]
+        </div>
+      </div>
+
+      <!-- DP-only live ε display -->
+      <div v-if="tool==='Differential Privacy'" class="mb-3 text-white">
+        <strong>ε per query:</strong> [[ epsPerQuery ]]<br>
+        <strong>Total ε per day:</strong> [[ epsTotal ]]
+      </div>
+
+      <button
+        class="btn btn-success"
+        :disabled="!valid"
+        type="submit"
+      >
+        Finish Setup
+      </button>
+    </form>
+  </div>
+{% endblock %}
+
+
+{% block scripts %}
+  <script>
+    window.__WIZARD_TOOL__  = {{ steps[0].tool|tojson }};
+    window.__WIZARD_STEPS__ = {{ steps|tojson }};
+  </script>
+
+  <script>
+    const { createApp } = Vue;
+    const app = createApp({
+      data() {
+        return {
+          steps:   window.__WIZARD_STEPS__ || [],
+          tool:    window.__WIZARD_TOOL__  || '',
+          answers: {},
+          errors:  {}
+        };
+      },
+      computed: {
+        epsPerQuery() {
+          const e = this.answers.D1;
+          return (e>0) ? (1/e).toFixed(3) : '–';
+        },
+        epsTotal() {
+          const e = this.answers.D1, q = this.answers.D2;
+          return (e>0 && Number.isInteger(q) && q>0)
+            ? ((1/e)*q).toFixed(3)
+            : '–';
+        },
+        valid() {
+          // number‐fields must be positive; radio‐fields must have a choice
+          return this.steps[0].questions.every(q => {
+            const v = this.answers[q.id];
+            if (q.input_type==='number') {
+              return (typeof v==='number' && v>0);
+            } else {
+              return Boolean(v);
+            }
+          }) && Object.keys(this.errors).length===0;
+        }
+      },
+      watch: {
+        'answers.D1'(v) {
+          if (this.tool!=='Differential Privacy') return;
+          if (typeof v!=='number' || v<=0) {
+            this.errors.D1 = 'Please enter a positive number.';
+          } else {
+            delete this.errors.D1;
+          }
+        },
+        'answers.D2'(v) {
+          if (this.tool!=='Differential Privacy') return;
+          if (!Number.isInteger(v) || v<=0) {
+            this.errors.D2 = 'Please enter a positive integer.';
+          } else {
+            delete this.errors.D2;
+          }
+        }
+      },
+      methods: {
+        async submitWizard() {
+          if (!this.valid) return;
+          const payload = { tool: this.tool, ...this.answers };
+          const res = await fetch('/wizard/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const { redirect } = await res.json();
+          window.location = redirect;
+        }
+      },
+      mounted() {
+        // init all answers to ''/null
+        this.steps[0].questions.forEach(q => {
+          this.answers[q.id] = (q.input_type==='number' ? '' : null);
+        });
+      }
+    });
+
+    // change Vue delimiters so Jinja ignores [[…]]
+    app.config.compilerOptions = app.config.compilerOptions || {};
+    app.config.compilerOptions.delimiters = ['[[',' ]]'];
+
+    app.mount('#wizardApp');
+  </script>
+{% endblock %}

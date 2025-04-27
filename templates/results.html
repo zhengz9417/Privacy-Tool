@@ -1,0 +1,79 @@
+{# templates/results.html #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="results-container p-4 rounded">
+    <h2 class="text-white mb-4">Recommended Privacy Techniques</h2>
+
+    <ul class="list-group mb-4">
+      {% for pet in recommendations[:3] %}
+        <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
+          <span class="text-white fs-5">{{ pet.name }}</span>
+          <span class="badge rank-badge">{{ loop.index }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {# show a “show all” toggle only if more than 3 #}
+    {% if recommendations|length > 3 %}
+      <p class="text-white mt-2">
+        <a class="text-white text-decoration-underline"
+           href="#"
+           data-bs-toggle="collapse"
+           data-bs-target="#allPets">
+      
+        </a>
+      </p>
+      <div class="collapse" id="allPets">
+        <ul class="list-group mb-4">
+          {% for pet in recommendations[3:] %}
+            <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
+              <span class="text-white">{{ pet.name }}</span>
+              <span class="badge rank-badge-secondary">{{ loop.index0 + 1 }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {# Parameter Suggestions #}
+    {% if parameters %}
+      <h4 class="text-white mt-4">Parameter Suggestions</h4>
+      <ul class="list-group mb-4">
+        {% for p in parameters %}
+          <li class="list-group-item bg-transparent border-0 text-white">{{ p }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {# Deal-breaker exclusions #}
+    {% if vetoed %}
+      <div class="alert alert-warning">
+        <h5>Excluded by Deal-Breakers</h5>
+        <ul>
+          {% for v in vetoed %}
+            <li>
+              <strong>{{ v.name }}</strong>
+              <small>(vetoed by {{ v.reasons|join(", ") }})</small>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {# Configuration buttons for each top-3 tool #}
+    <div class="mt-4">
+      <h5 class="text-white">Configure a tool:</h5>
+      <div class="btn-toolbar" role="toolbar">
+        <div class="btn-group me-2" role="group">
+          {% for pet in recommendations[:3] %}
+            <a href="{{ url_for('wizard', tool=pet.name) }}"
+               class="btn btn-light">
+              {{ pet.name }} Guidance
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

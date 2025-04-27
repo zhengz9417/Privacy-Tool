@@ -1,0 +1,38 @@
+{# templates/wizard_results.html #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="container py-5">
+    <h2 class="text-white">Configuration for {{ current_tool }}</h2>
+
+    <ul class="list-group mb-4">
+      {% for line in config %}
+        <li class="list-group-item bg-transparent text-white">{{ line }}</li>
+      {% endfor %}
+    </ul>
+
+    <hr class="border-light">
+
+    <h4 class="text-white">Configure another tool:</h4>
+    <div class="btn-group mb-4">
+      {% for tool in wizard_tools %}
+      {# hide any tool whose name appears inside current_tool #}
+      {% if tool.lower() not in current_tool.lower() %}
+        <a href="{{ url_for('wizard', tool=tool) }}" class="btn btn-secondary">
+          {{ tool }}
+        </a>
+      {% endif %}
+    {% endfor %}
+    
+    </div>
+
+    <p>
+      <a
+        href="{{ url_for('show_results', tools=wizard_tools|join(',')) }}"
+        class="btn btn-light"
+      >
+        Back to all results
+      </a>
+    </p>
+  </div>
+{% endblock %}
