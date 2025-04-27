@@ -10,19 +10,35 @@
     <!-- Optional per-tool intro -->
     <div class="text-white mb-4">
       <template v-if="tool === 'Differential Privacy'">
-        Differential Privacy (DP) protects individual records by adding noise…
+        Differential Privacy (DP) protects individual records by adding noise.  
+        <br /><br />
+        <strong>Maximum absolute error (Δ=1):</strong>  
+        This controls how much error (noise) you are willing to accept to protect privacy. A smaller value gives more accurate results but weaker privacy; a larger value gives stronger privacy but less accuracy.  
+        <br /><br />
+        <strong>Expected number of queries per day:</strong>  
+        How many times you plan to access the data each day. More queries consume more of your daily privacy budget (ε).
+        <br /><br />
+        <strong>ε (epsilon) per query:</strong>  
+        A measure of how much privacy loss each query causes. Smaller ε means stronger privacy.
+        <br />
+        <strong>Total ε per day:</strong>  
+        This is your differential privacy budget per day, which is the total amount of privacy "used up" across all your queries each day.
       </template>
+    
       <template v-else-if="tool === 'Secure Multiparty Computation'">
-        Secure Multiparty Computation lets multiple parties jointly compute…
+        Secure Multiparty Computation lets multiple parties jointly compute without revealing their private inputs.
       </template>
+    
       <template v-else-if="tool === 'Synthetic Data Generation'">
-        Synthetic Data Generation creates artificial records that mirror…
+        Synthetic Data Generation creates artificial records that mirror the real dataset's patterns without exposing true individuals.
       </template>
+    
       <template v-else-if="tool === 'Trusted Execution Environments'">
-        TEEs give you a hardware-backed secure enclave to process…
+        TEEs give you a hardware-backed secure enclave to process sensitive data safely, even in untrusted environments.
       </template>
+    
       <template v-else-if="tool.includes('k-anonymity')">
-        k-Anonymity & ℓ-Diversity generalize and suppress quasi-identifiers…
+        k-Anonymity & ℓ-Diversity generalize and suppress quasi-identifiers to make individual records indistinguishable within groups.
       </template>
     </div>
 
