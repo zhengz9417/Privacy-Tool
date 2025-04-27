@@ -172,7 +172,7 @@
           // build payload from rawQuestions & answers
           const payload = {};
           this.rawQuestions.forEach((q, idx) => {
-            payload[q.id] = this.answers[idx];
+            payload[q.text] = this.answers[idx];
           });
           fetch('/results', {
             method:'POST',

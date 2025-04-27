@@ -267,15 +267,31 @@ def index():
 
 @app.post("/results")
 def results_api():
-    answers = request.get_json(force=True)
-    ranked, params, veto = evaluate(answers)
+    raw = request.get_json(force=True)  # whatever shape it is in
+    # build a mapping id→text so we can translate id-keys back to text
+    questions = build_questions()
+    id_to_text = {q["id"]: q["text"] for q in questions}
+
+    # build the final answers dict: { question_text: answer }
+    answers_by_text = {}
+    for key, val in raw.items():
+        if key in id_to_text:
+            # key was "q1","q2",… → translate
+            answers_by_text[id_to_text[key]] = val
+        else:
+            # assume key already *is* the question text
+            answers_by_text[key] = val
+
+    # now evaluate against your lookup
+    ranked, params, veto = evaluate(answers_by_text)
 
     session["ranked"] = ranked
     session["params"] = params
     session["vetoed"] = veto
 
-    tools = ",".join([r["name"] for r in ranked])
+    tools = ",".join(r["name"] for r in ranked)
     return jsonify({"redirect": url_for("show_results", tools=tools)})
+
 
 
 @app.get("/results")
