@@ -4,7 +4,26 @@
 {% block content %}
 <div id="questionnaire" class="container-narrow mt-4">
   <transition name="fade" mode="out-in">
-    <div class="card shadow-sm" :key="currentIndex">
+
+    <!-- 1) INTRO CARD -->
+    <div v-if="showIntro" class="card shadow-sm bg-secondary text-white">
+      <div class="card-body">
+        <h2 class="card-title mb-3">Welcome to PET Advisor</h2>
+        <p class="card-text">
+          Answer a few quick questions about your data, risk profile, and compliance needs,
+          and we’ll generate a customized set of privacy‐enhancing techniques—plus the
+          key legal and regulatory measures you should follow—for your project!
+        </p>
+      </div>
+      <div class="card-footer text-end">
+        <button class="btn btn-success" @click="startSurvey()">
+          Start Survey →
+        </button>
+      </div>
+    </div>
+
+    <!-- 2) QUESTION CARD -->
+    <div v-else class="card shadow-sm" :key="currentIndex">
       <div class="card-body">
         <!-- Progress header -->
         <h5 class="card-title mb-3">
@@ -15,21 +34,24 @@
         </h5>
         <p class="card-text" v-text="currentQuestion.text"></p>
 
+        <!-- Single-choice -->
         <div v-if="!currentQuestion.multi">
-                    <div class="form-check mb-2"
-                         v-for="opt in currentQuestion.options"
-                         :key="opt">
-                     <input
-                        class="form-check-input"
-                        type="radio"
-                        :name="currentQuestion.id"
-                        :id="currentQuestion.id + '-' + opt"
-                        :value="opt"
-                        v-model="answers[getRawIndex(currentIndex)]"
-                      />
+          <div
+            class="form-check mb-2"
+            v-for="opt in currentQuestion.options"
+            :key="opt"
+          >
+            <input
+              class="form-check-input"
+              type="radio"
+              :name="currentQuestion.id"
+              :id="`${currentQuestion.id}-${opt}`"
+              :value="opt"
+              v-model="answers[getRawIndex(currentIndex)]"
+            />
             <label
               class="form-check-label"
-              :for="currentQuestion.id + '-' + opt"
+              :for="`${currentQuestion.id}-${opt}`"
             >
               <span v-text="opt"></span>
             </label>
@@ -38,19 +60,21 @@
 
         <!-- Multi-select -->
         <div v-else>
-                    <div class="form-check mb-2"
-                        v-for="opt in currentQuestion.options"
-                         :key="opt">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        :id="currentQuestion.id + '-' + opt"
-                        :value="opt"
-                        v-model="answers[getRawIndex(currentIndex)]"
-                      />
+          <div
+            class="form-check mb-2"
+            v-for="opt in currentQuestion.options"
+            :key="opt"
+          >
+            <input
+              class="form-check-input"
+              type="checkbox"
+              :id="`${currentQuestion.id}-${opt}`"
+              :value="opt"
+              v-model="answers[getRawIndex(currentIndex)]"
+            />
             <label
               class="form-check-label"
-              :for="currentQuestion.id + '-' + opt"
+              :for="`${currentQuestion.id}-${opt}`"
             >
               <span v-text="opt"></span>
             </label>
@@ -96,18 +120,16 @@
         </button>
       </div>
     </div>
+
   </transition>
 </div>
 {% endblock %}
 
-
 {% block scripts %}
-  <!-- 1) Inject the full questions list (with depends_on/depends_value) -->
   <script>
     window.__RAW_QUESTIONS__ = {{ questions|tojson }};
   </script>
 
-  <!-- 2) Inline Vue app that filters out Q4 until Q3 = "Real-time/interactive" -->
   <script>
     const { createApp } = Vue;
 
@@ -115,21 +137,19 @@
       data() {
         return {
           rawQuestions: window.__RAW_QUESTIONS__ || [],
-          answers:      [],       // we’ll fill this below
-          currentIndex: 0
+          answers:      [],
+          currentIndex: 0,
+          showIntro:    true
         };
       },
       computed: {
-        // Only questions whose dependency is satisfied
         visibleQuestions() {
-          return this.rawQuestions.filter((q, idx) => {
+          return this.rawQuestions.filter(q => {
             if (!q.depends_on) return true;
-            // depends_on = "q3" → raw index = 2
             const depIdx = Number(q.depends_on.slice(1)) - 1;
             return this.answers[depIdx] === q.depends_value;
           });
         },
-        // Shortcut to the question we’re currently rendering
         currentQuestion() {
           return this.visibleQuestions[this.currentIndex] || {};
         },
@@ -137,54 +157,46 @@
           return this.visibleQuestions.length;
         },
         progress() {
-          return ((this.currentIndex + 1)/this.total)*100;
+          return ((this.currentIndex + 1) / this.total) * 100;
         },
         isLast() {
           return this.currentIndex === this.total - 1;
         }
       },
       methods: {
-          hasAnswered(visIdx) {
+        startSurvey() {
+          this.showIntro = false;
+        },
+        hasAnswered(visIdx) {
           const rawIdx = this.getRawIndex(visIdx);
           const ans    = this.answers[rawIdx];
-          return Array.isArray(ans)
-            ? ans.length > 0
-            : ans !== null && ans !== undefined;
+          return Array.isArray(ans) ? ans.length > 0 : ans != null;
         },
-        // map visible‐index → rawQuestions index
         getRawIndex(visIdx) {
-          // find the visIdx'th element in visibleQuestions
           const q = this.visibleQuestions[visIdx];
-          // find its index in the raw array
-          return this.rawQuestions.findIndex(rq => rq.id === q.id);
+          return this.rawQuestions.findIndex(r => r.id === q.id);
         },
         next() {
-          if (this.currentIndex < this.total - 1) {
-            this.currentIndex++;
-          }
+          if (this.currentIndex < this.total - 1) this.currentIndex++;
         },
         prev() {
-          if (this.currentIndex > 0) {
-            this.currentIndex--;
-          }
+          if (this.currentIndex > 0) this.currentIndex--;
         },
         submitForm() {
-          // build payload from rawQuestions & answers
           const payload = {};
           this.rawQuestions.forEach((q, idx) => {
             payload[q.text] = this.answers[idx];
           });
           fetch('/results', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
-          .then(r=>r.json())
-          .then(j=> window.location = j.redirect);
+          .then(r => r.json())
+          .then(j => window.location = j.redirect);
         }
       },
       mounted() {
-        // initialize answers[] to null or [] for checkboxes
         this.rawQuestions.forEach(q => {
           this.answers.push(q.multi ? [] : null);
         });

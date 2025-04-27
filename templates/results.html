@@ -3,40 +3,30 @@
 
 {% block content %}
   <div class="results-container p-4 rounded">
-    <h2 class="text-white mb-4">Recommended Privacy Techniques</h2>
 
+    {# --- Privacy Techniques Section (show top 2) --- #}
+    <h2 class="text-white mb-4">Recommended Privacy Techniques</h2>
     <ul class="list-group mb-4">
-      {% for pet in recommendations[:3] %}
+      {% for pet in privacy_techniques %}
         <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
           <span class="text-white fs-5">{{ pet.name }}</span>
           <span class="badge rank-badge">{{ loop.index }}</span>
         </li>
       {% endfor %}
     </ul>
+    
+    {# --- Policies Section (show top 2) --- #}
+    <h2 class="text-white mb-4">Legal & Regulatory Framework</h2>
+    <ul class="list-group mb-4">
+      {% for policy in policies %}
+        <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
+          <span class="text-white fs-5">{{ policy.name }}</span>
+          <span class="badge rank-badge">{{ loop.index }}</span>
+        </li>
+      {% endfor %}
+    </ul>
 
-    {# show a “show all” toggle only if more than 3 #}
-    {% if recommendations|length > 3 %}
-      <p class="text-white mt-2">
-        <a class="text-white text-decoration-underline"
-           href="#"
-           data-bs-toggle="collapse"
-           data-bs-target="#allPets">
-      
-        </a>
-      </p>
-      <div class="collapse" id="allPets">
-        <ul class="list-group mb-4">
-          {% for pet in recommendations[3:] %}
-            <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
-              <span class="text-white">{{ pet.name }}</span>
-              <span class="badge rank-badge-secondary">{{ loop.index0 + 1 }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-
-    {# Parameter Suggestions #}
+    {# --- Parameter Suggestions Section --- #}
     {% if parameters %}
       <h4 class="text-white mt-4">Parameter Suggestions</h4>
       <ul class="list-group mb-4">
@@ -46,10 +36,10 @@
       </ul>
     {% endif %}
 
-    {# Deal-breaker exclusions #}
+    {# --- Deal-breaker Exclusions Section --- #}
     {% if vetoed %}
       <div class="alert alert-warning">
-        <h5>Excluded by Deal-Breakers</h5>
+        <h5>Excluded by Your Constraints</h5>
         <ul>
           {% for v in vetoed %}
             <li>
@@ -61,12 +51,12 @@
       </div>
     {% endif %}
 
-    {# Configuration buttons for each top-3 tool #}
+    {# --- Configuration Buttons Section (for top-3 privacy techniques) --- #}
     <div class="mt-4">
       <h5 class="text-white">Configure a tool:</h5>
       <div class="btn-toolbar" role="toolbar">
         <div class="btn-group me-2" role="group">
-          {% for pet in recommendations[:3] %}
+          {% for pet in privacy_techniques[:3] %}
             <a href="{{ url_for('wizard', tool=pet.name) }}"
                class="btn btn-light">
               {{ pet.name }} Guidance
@@ -75,5 +65,6 @@
         </div>
       </div>
     </div>
+
   </div>
 {% endblock %}

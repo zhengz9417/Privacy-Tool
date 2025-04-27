@@ -1,4 +1,5 @@
 # app.py
+
 from pathlib import Path
 from collections import OrderedDict
 
@@ -185,7 +186,7 @@ def mpc_steps():
             },
             {
                 "id": "S2",
-                "text": "2) What is the maximum number of parties that can be compromised?",
+                "text": "2) How many parties do you think might collude or be taken over by an attacker?",
                 "input_type": "number",
                 "placeholder": "e.g. 1"
             }
@@ -241,7 +242,7 @@ def te_steps():
         {
             "id": "T1",
             "text": "1) Approximately how many unique records will you process?",
-            "options": ["<100k", "100k–1M", ">1M", "Custom…"]
+            "options": ["<100k", "100k–1M", ">1M"]
         },
         {
             "id": "T2",
@@ -299,48 +300,75 @@ def show_results():
     ranked = session.get("ranked", [])
     params = session.get("params", [])
     vetoed = session.get("vetoed", [])
-    all_tools = request.args.get("tools","").split(",")
-    top3_tools = all_tools[:3]
-    session["wizard_tools"] = top3_tools
+    all_tools = request.args.get("tools", "").split(",")
+    top3_tools = all_tools
+    session["wizard_tools"] = top3_tools[:3]
+
+    # Split ranked into privacy techniques vs policy recommendations
+    recommended_privacy_techniques = []
+    recommended_policies = []
+
+    for item in ranked:
+        name = item.get("name", "").lower()
+        if any(keyword in name for keyword in ["compliance", "policy", "regulation", "ferpa", "hipaa", "gdpr", "foia"]):
+            recommended_policies.append(item)
+        else:
+            recommended_privacy_techniques.append(item)
+
+    # Only take top 2 from each
+    top_privacy_techniques = recommended_privacy_techniques[:2]
+    top_policies = recommended_policies
 
     return render_template(
         "results.html",
-        recommendations=ranked,
+        privacy_techniques=top_privacy_techniques,
+        policies=top_policies,
         parameters=params,
         vetoed=vetoed,
         wizard_tools=top3_tools
-
     )
 
 
 
 @app.get("/wizard")
 def wizard():
-    tool_raw = request.args.get("tool","").lower()
-    steps = []
+    tool_raw = request.args.get("tool", "").lower().strip()
+
+    # Differential Privacy
     if "differential privacy" in tool_raw:
         questions = dp_steps()
-        display = "Differential Privacy"
-    elif "multiparty" in tool_raw:
+        display   = "Differential Privacy"
+
+    # Secure MPC (catch hyphens, spaces or "mpc")
+    elif any(kw in tool_raw for kw in ("multiparty", "multi-party", "mpc")):
         questions = mpc_steps()
-        display = "Secure Multiparty Computation"
+        display   = "Secure Multiparty Computation"
+
+    # Synthetic Data
     elif "synthetic data" in tool_raw:
         questions = sd_steps()
-        display = "Synthetic Data Generation"
+        display   = "Synthetic Data Generation"
+
+    # Trusted Execution Environments
     elif "trusted execution" in tool_raw or "tee" in tool_raw:
         questions = te_steps()
-        display = "Trusted Execution Environments"
-    elif "k-anonymity" in tool_raw:
+        display   = "Trusted Execution Environments"
+
+    # k-anonymity & ℓ-diversity
+    elif "k-anonymity" in tool_raw or "l-diversity" in tool_raw:
         questions = ka_steps()
-        display = "k-anonymity & ℓ-diversity"
+        display   = "k-anonymity & ℓ-diversity"
+
     else:
-        return "Please select a valid tool.", 400
+        # no match → error
+        return "This tool is hard to give advice on implementation simply in a wizard. Please consider gain advice from a data privacy expert.", 400
 
     return render_template(
-      "wizard.html",
-      steps=[{"tool": display, "questions": questions}],
-      selected_tool=display
+        "wizard.html",
+        steps=[{"tool": display, "questions": questions}],
+        selected_tool=display
     )
+
 
 
 
@@ -365,37 +393,136 @@ def wizard_submit():
             config.append("⛔ Invalid DP inputs—could not compute ε.")
 
     elif tool == "Synthetic Data Generation":
-        # SD logic: echo answers & give tips
-        config.append("Your choices for Synthetic Data:")
-        for q in ["S1","S2","S3","S4","S5","S6","S7"]:
-            if q in data:
-                config.append(f"  {q}: {data[q]}")
-        config.append("")
-        config.append("Implementation tips:")
-        # S3 → method
-        m = data.get("S3","").lower()
-        if "gan" in m:
-            config.append("• Use CTGAN or TVAE for tabular GAN generation.")
-        elif "bayesian" in m or "copula" in m:
-            config.append("• Try a BayesianNetwork/Copula model (e.g. SDV).")
-        # S7 → hardware
+        # Start building the config output
+        config.append("Your choices for Synthetic Data Generation:")
+        
+        # Map step IDs to human-readable question labels
+        step_labels = {
+            "S1": "Data type",
+            "S2": "Dataset size",
+            "S3": "Generation method",
+            "S4": "Differential Privacy",
+            "S5": "Regeneration frequency",
+            "S6": "Evaluation criteria",
+            "S7": "Hardware constraints"
+        }
+        # Echo back each answer
+        for step in ["S1","S2","S3","S4","S5","S6","S7"]:
+            if step in data:
+                label = step_labels.get(step, step)
+                config.append(f"  • {label}: {data[step]}")
+        
+        config.append("")  # blank line
+        config.append("Implementation tips and recommendations:")
+
+        # S1 → method category
+        dtype = data.get("S1","").lower()
+        if "tabular" in dtype:
+            config.append("• For tabular data, consider CTGAN or TVAE implementations.")
+        elif "time-series" in dtype:
+            config.append("• For time-series, look at TimeGAN or DP-TS synth frameworks.")
+        elif "graph" in dtype:
+            config.append("• For graph data, explore GraphGAN or PrivGraph.")
+        elif "images" in dtype or "unstructured" in dtype:
+            config.append("• For images/unstructured, try DP-GAN or PATE-GAN variants.")
+        
+        # S2 → relative sizing
+        size = data.get("S2","").lower()
+        if "smaller" in size:
+            config.append("• Smaller samples → faster training; verify distribution overlap.")
+        elif "larger" in size:
+            config.append("• Larger synthetic sets may amplify biases—monitor quality metrics.")
+        elif "custom" in size:
+            config.append("• Custom sizes: balance compute cost vs. data utility.")
+
+        # S3 → specific method
+        method = data.get("S3","").lower()
+        if "gan" in method:
+            config.append("• GAN-based → CTGAN/TVAE for tabular, StyleGAN for images.")
+        elif "bayesian" in method or "copula" in method:
+            config.append("• Bayesian/Copula → SDV’s Bayesian network or CopulaGAN.")
+        elif "vae" in method:
+            config.append("• VAE-based → try DP-VAE or VAE-GAN hybrids.")
+        
+        # S4 → differential privacy toggle
+        dp_on = data.get("S4","").lower()
+        if "yes" in dp_on:
+            config.append("• DP enabled → tune ε carefully; too small harms utility.")
+        else:
+            config.append("• No DP → ensure data leakage risk is acceptable.")
+
+        # S5 → regeneration schedule
+        regen = data.get("S5","").lower()
+        if "daily" in regen:
+            config.append("• Daily regen → automate retraining & quality checks.")
+        elif "weekly" in regen:
+            config.append("• Weekly regen → balance freshness vs. compute cost.")
+        elif "monthly" in regen:
+            config.append("• Monthly regen → schedule performance benchmarks.")
+        elif "custom" in regen:
+            config.append("• Custom regen → integrate with your CI/CD pipeline.")
+
+        # S6 → evaluation metrics
+        eval_crit = data.get("S6","").lower()
+        if "statistical" in eval_crit:
+            config.append("• Use KS test, Chi-square for marginal distribution checks.")
+        if "ml model" in eval_crit:
+            config.append("• Train downstream models and compare accuracy/F1.")
+        if "privacy risk" in eval_crit:
+            config.append("• Run membership inference and attribute inference attacks.")
+        if "user feedback" in eval_crit:
+            config.append("• Collect domain expert feedback on synthetic realism.")
+
+        # S7 → hardware recommendations
         hw = data.get("S7","").lower()
-        if "gpu" in hw:
-            config.append("• Leverage cloud GPUs/TPUs for faster GAN training.")
+        if "gpu" in hw or "tpu" in hw:
+            config.append("• Leverage cloud GPUs/TPUs for faster model convergence.")
         elif "cpu" in hw:
-            config.append("• Use lightweight samplers (Bayesian nets, trees).")
+            config.append("• CPU only → use lightweight, non-neural methods (Copula, Bayesian).")
         elif "tee" in hw:
-            config.append("• Run generation inside your TEE (SGX, Nitro).")
-        # …add more branches for S1,S2,S4,S5,S6 as desired…
+            config.append("• TEE available → run sensitive data synth inside enclaves.")
+        
+        # Final fallback tip
+        config.append("")
+        config.append("For more, see: SDV (sdv.dev), CTGAN docs, or your preferred synth library.")
+
 
     elif tool == "Secure Multiparty Computation":
-        # MPC logic (example)
+    # MPC logic
+        try:
+            # Number of parties and maximum corruptions
+            n = int(data.get("S1", 0))
+            t = int(data.get("S2", 0))
+        except ValueError:
+            n, t = None, None
+
         config.append("Your MPC configuration:")
-        for q in ["M1","M2","M3"]:
-            if q in data:
-                config.append(f"  {q}: {data[q]}")
+        if n is None or t is None:
+            config.append("  ⛔ Invalid inputs—please enter integers for parties and threshold.")
+        else:
+            config.append(f"  • Total parties (n): {n}")
+            config.append(f"  • Max corruptions tolerated (t): {t}")
+            config.append("")
+            config.append("Protocol recommendations:")
+
+        # Choose protocol family by adversary tolerance
+        # Semi-honest BGW/GMW if t < n/2; malicious SPDZ if t < n
+        if  t < n/2:
+            config.append("  – Semi-honest model (t < n/2): Consider BGW or GMW (Shamir secret‐sharing).")
+        elif t < n:
+            config.append("  – Malicious model (t < n): Consider SPDZ/MASCOT or HoneyBadgerMPC for stronger security.")
+        else:
+            config.append("  – Warning: t must be < n for security—please adjust your threshold.")
+            config.append("")
+            config.append("Libraries & frameworks:")
+            config.append("  • MP-SPDZ (C++): supports many protocols & security levels.")
+            config.append("  • SCALE-MAMBA (Python/C++): friendly DSL & semi-honest/SPDZ.")
+            config.append("  • VIFF (Python): easy prototyping, semi-honest only.")
+            config.append("  • Sharemind (Rust): commercial‐grade with high‐performance optimizations.")
+
         config.append("")
-        config.append("Tip: Tune your n-of-t threshold based on trust model.")
+        config.append("Tip: choose your n-of-t threshold based on your trust & threat model.")
+
     
     elif tool == "Trusted Execution Environments":
         # TEE logic
@@ -441,12 +568,14 @@ def wizard_submit():
         l_val = l_map.get(k2, 2)
 
         config.append("")
-        config.append("Implementation tips:")
         if k_val:
             config.append(f"• Generalize/suppress to achieve k={k_val} and ℓ={l_val}.")
+            config.append("  – k (anonymity): each record is indistinguishable from at least k–1 others sharing the same quasi-identifiers.")
+            config.append("  – ℓ (diversity): each such group must contain at least ℓ distinct sensitive-attribute values.")
             config.append("  Use a library like ARX (Java) or sdcMicro (R/Python).")
         else:
             config.append("• Unable to derive k/ℓ for those choices—please adjust settings.")
+
 
     else:
         config.append(f"No wizard logic found for tool: {tool}")
@@ -460,19 +589,27 @@ def wizard_submit():
 
 @app.get("/wizard/results")
 def wizard_results():
-    """
-    Show the computed parameters for the tool just configured,
-    and let the user pick another one to configure.
-    """
     cfg         = session.get("config", [])
     all_tools   = session.get("wizard_tools", [])
     current     = session.get("last_tool", "")
+
+    # drop any that look like policies/compliance
+    policy_keywords = (
+      "compliance", "policy", "regulation",
+      "ferpa", "hipaa", "gdpr", "foia", "ccpa", "coppa"
+    )
+    privacy_tools = [
+      t for t in all_tools
+      if not any(kw in t.lower() for kw in policy_keywords)
+    ]
+
     return render_template(
         "wizard_results.html",
         config=cfg,
-        wizard_tools=all_tools,
+        wizard_tools=privacy_tools,
         current_tool=current
     )
+
 
 
 if __name__ == "__main__":
